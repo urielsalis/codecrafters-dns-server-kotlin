@@ -7,7 +7,8 @@ fun ByteArray.toDomain(): DNSPacket {
     val buffer = ByteBuffer.wrap(this).order(ByteOrder.BIG_ENDIAN)
     val header = parseHeader(buffer)
     val questions = (0 until header.qdcount).map { parseQuestion(buffer) }
-    return DNSPacket(header, questions, listOf(), listOf(), listOf())
+    val answers = (0 until header.ancount).map { parseRecord(buffer) }
+    return DNSPacket(header, questions, answers, listOf(), listOf())
 }
 
 fun parseQuestion(buffer: ByteBuffer): DNSQuestion {
@@ -17,6 +18,23 @@ fun parseQuestion(buffer: ByteBuffer): DNSQuestion {
     return DNSQuestion(name,
         DNSType.entries.first { it.value == type },
         DNSClass.entries.first { it.value == klass })
+}
+
+fun parseRecord(buffer: ByteBuffer): DNSRecord {
+    val name = parseName(buffer)
+    val type = buffer.short
+    val klass = buffer.short
+    val ttl = buffer.int
+    val rdLength = buffer.short
+    val data = ByteArray(rdLength.toInt())
+    buffer.get(data)
+    return DNSRecord(
+        name,
+        DNSType.entries.first { it.value == type },
+        DNSClass.entries.first { it.value == klass },
+        ttl,
+        data
+    )
 }
 
 fun parseName(buffer: ByteBuffer): List<String> {
@@ -69,17 +87,8 @@ fun DNSPacket.toPacket(): ByteArray {
     val buffer = ByteBuffer.allocate(512).order(ByteOrder.BIG_ENDIAN)
     writeHeader(this.header, buffer)
     this.questions.forEach { writeQuestion(it, buffer) }
+    this.answers.forEach { writeRecord(it, buffer) }
     return buffer.rewind().array()
-}
-
-fun writeQuestion(question: DNSQuestion, buffer: ByteBuffer) {
-    question.name.forEach { label ->
-        buffer.put(label.length.toByte())
-        buffer.put(label.toByteArray())
-    }
-    buffer.put(0x00.toByte())
-    buffer.putShort(question.type.value)
-    buffer.putShort(question.klass.value)
 }
 
 fun writeHeader(header: DNSHeader, buffer: ByteBuffer) {
@@ -111,6 +120,29 @@ fun writeHeader(header: DNSHeader, buffer: ByteBuffer) {
     buffer.putShort(header.ancount)
     buffer.putShort(header.nscount)
     buffer.putShort(header.arcount)
+}
+
+fun writeQuestion(question: DNSQuestion, buffer: ByteBuffer) {
+    writeName(question.name, buffer)
+    buffer.putShort(question.type.value)
+    buffer.putShort(question.klass.value)
+}
+
+fun writeRecord(record: DNSRecord, buffer: ByteBuffer) {
+    writeName(record.name, buffer)
+    buffer.putShort(record.type.value)
+    buffer.putShort(record.klass.value)
+    buffer.putInt(record.ttl)
+    buffer.putShort(record.data.size.toShort())
+    buffer.put(record.data)
+}
+
+private fun writeName(name: List<String>, buffer: ByteBuffer) {
+    name.forEach { label ->
+        buffer.put(label.length.toByte())
+        buffer.put(label.toByteArray())
+    }
+    buffer.put(0x00.toByte())
 }
 
 private fun BitSet.valueOrZero(): HalfByte = this.toByteArray().firstOrNull() ?: 0
