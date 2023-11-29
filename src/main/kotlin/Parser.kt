@@ -6,13 +6,29 @@ import java.util.*
 fun ByteArray.toDomain(): DNSPacket {
     val buffer = ByteBuffer.wrap(this).order(ByteOrder.BIG_ENDIAN)
     val header = parseHeader(buffer)
-    return DNSPacket(header, listOf(), listOf(), listOf(), listOf())
+    val questions = (0 until header.qdcount).map { parseQuestion(buffer) }
+    return DNSPacket(header, questions, listOf(), listOf(), listOf())
 }
 
-fun DNSPacket.toPacket(): ByteArray {
-    val buffer = ByteBuffer.allocate(512).order(ByteOrder.BIG_ENDIAN)
-    writeHeader(this.header, buffer)
-    return buffer.rewind().array()
+fun parseQuestion(buffer: ByteBuffer): DNSQuestion {
+    val name = parseName(buffer)
+    val type = buffer.short
+    val klass = buffer.short
+    return DNSQuestion(name,
+        DNSType.entries.first { it.value == type },
+        DNSClass.entries.first { it.value == klass })
+}
+
+fun parseName(buffer: ByteBuffer): List<String> {
+    val labels = mutableListOf<String>()
+    var length = buffer.get()
+    while (length != 0x00.toByte()) {
+        val bytes = ByteArray(length.toInt())
+        buffer.get(bytes)
+        labels.add(String(bytes))
+        length = buffer.get()
+    }
+    return labels
 }
 
 fun parseHeader(buffer: ByteBuffer): DNSHeader {
@@ -47,6 +63,23 @@ fun parseHeader(buffer: ByteBuffer): DNSHeader {
         nscount = nsCount,
         arcount = arCount
     )
+}
+
+fun DNSPacket.toPacket(): ByteArray {
+    val buffer = ByteBuffer.allocate(512).order(ByteOrder.BIG_ENDIAN)
+    writeHeader(this.header, buffer)
+    this.questions.forEach { writeQuestion(it, buffer) }
+    return buffer.rewind().array()
+}
+
+fun writeQuestion(question: DNSQuestion, buffer: ByteBuffer) {
+    question.name.forEach { label ->
+        buffer.put(label.length.toByte())
+        buffer.put(label.toByteArray())
+    }
+    buffer.put(0x00.toByte())
+    buffer.putShort(question.type.value)
+    buffer.putShort(question.klass.value)
 }
 
 fun writeHeader(header: DNSHeader, buffer: ByteBuffer) {
