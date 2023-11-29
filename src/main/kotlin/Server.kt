@@ -21,24 +21,12 @@ fun handlePacket(resolver: String?, parsed: DNSPacket): DNSPacket {
 
 fun handleQuestion(resolver: String?, header: DNSHeader, question: DNSQuestion): List<DNSRecord> {
     if (resolver != null && header.rd) {
-        val parts = resolver.split(":")
-        val host = parts[0]
-        val port = parts.getOrElse(1) { "53" }.toInt()
-        val socket = DatagramSocket()
-        val buf = DNSPacket(
-            header.copy(qdcount = 1), listOf(question), listOf(), listOf(), listOf()
-        ).toPacket()
-        val resolverPacketDatagram =
-            DatagramPacket(buf, buf.size, InetAddress.getByName(host), port)
-        socket.send(resolverPacketDatagram)
-        val responseBuf = ByteArray(512)
-        val responsePacket = DatagramPacket(responseBuf, responseBuf.size)
-        socket.receive(responsePacket)
-        val parsed = responsePacket.data.toDomain()
-        if (parsed.answers.isNotEmpty()) {
-            return parsed.answers
+        val answers = resolve(resolver, header, question)
+        if (answers.isNotEmpty()) {
+            return answers
         }
     }
+    // TODO this is a default answer to pass earlier stages.
     return listOf(
         DNSRecord(
             name = question.name,
@@ -48,4 +36,22 @@ fun handleQuestion(resolver: String?, header: DNSHeader, question: DNSQuestion):
             data = byteArrayOf(127, 0, 0, 1)
         )
     )
+}
+
+fun resolve(resolver: String, header: DNSHeader, question: DNSQuestion): List<DNSRecord> {
+    val parts = resolver.split(":")
+    val host = parts[0]
+    val port = parts.getOrElse(1) { "53" }.toInt()
+
+    val socket = DatagramSocket()
+    val buf = DNSPacket(header, question).toPacket()
+    val datagram = DatagramPacket(buf, buf.size, InetAddress.getByName(host), port)
+    socket.send(datagram)
+
+    val responseBuf = ByteArray(512)
+    val responsePacket = DatagramPacket(responseBuf, responseBuf.size)
+    socket.receive(responsePacket)
+
+    val parsed = responsePacket.data.toDomain()
+    return parsed.answers
 }

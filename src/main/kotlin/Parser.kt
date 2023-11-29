@@ -29,7 +29,8 @@ fun parseRecord(buffer: ByteBuffer): DNSRecord {
     val rdLength = buffer.short
     val data = ByteArray(rdLength.toInt())
     buffer.get(data)
-    return DNSRecord(name,
+    return DNSRecord(
+        name,
         DNSType.entries.first { it.value == type },
         DNSClass.entries.first { it.value == klass },
         ttl,

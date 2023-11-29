@@ -4,7 +4,13 @@ data class DNSPacket(
     val answers: List<DNSRecord>,
     val authorities: List<DNSRecord>,
     val additionals: List<DNSRecord>,
-)
+) {
+    constructor(header: DNSHeader, questions: DNSQuestion) : this(
+        header.copy(
+            qdcount = 1, ancount = 0, nscount = 0, arcount = 0
+        ), listOf(questions), listOf(), listOf(), listOf()
+    )
+}
 
 typealias HalfByte = Byte
 
