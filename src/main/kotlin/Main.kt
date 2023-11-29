@@ -1,7 +1,8 @@
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 
-fun main() {
+fun main(args: Array<String>) {
+    val resolver = args.getOrNull(1)
     try {
         val serverSocket = DatagramSocket(2053)
         while (true) {
@@ -10,9 +11,7 @@ fun main() {
             serverSocket.receive(packet)
 
             val parsed = packet.data.toDomain()
-            println("Parsed $parsed")
-            val response = handlePacket(parsed)
-            println("Response $parsed")
+            val response = handlePacket(resolver, parsed)
             val responsePacket = response.toPacket()
 
             val packetResponse =
