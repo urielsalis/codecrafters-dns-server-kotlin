@@ -6,10 +6,11 @@ fun handlePacket(parsed: DNSPacket): DNSPacket {
     } else {
         RCode.NOT_IMPLEMENTED
     }
+    val answers = parsed.questions.flatMap { handleQuestion(parsed.header, it) }
     return DNSPacket(
-        header = parsed.header.copy(qr = true, rcode = rcode, ancount = 1),
+        header = parsed.header.copy(qr = true, rcode = rcode, ancount = answers.size.toShort()),
         questions = parsed.questions,
-        answers = parsed.questions.flatMap { handleQuestion(parsed.header, it) },
+        answers = answers,
         authorities = listOf(),
         additionals = listOf()
     )

@@ -10,7 +10,9 @@ fun main() {
             serverSocket.receive(packet)
 
             val parsed = packet.data.toDomain()
+            println("Parsed $parsed")
             val response = handlePacket(parsed)
+            println("Response $parsed")
             val responsePacket = response.toPacket()
 
             val packetResponse =
@@ -18,6 +20,7 @@ fun main() {
             serverSocket.send(packetResponse)
         }
     } catch (e: Exception) {
-        println("Exception: ${e.message}")
+        e.printStackTrace()
+        println("Exception: $e")
     }
 }

@@ -2,6 +2,7 @@ import DNSHeader.RCode
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.*
+import kotlin.experimental.and
 
 fun ByteArray.toDomain(): DNSPacket {
     val buffer = ByteBuffer.wrap(this).order(ByteOrder.BIG_ENDIAN)
@@ -28,8 +29,7 @@ fun parseRecord(buffer: ByteBuffer): DNSRecord {
     val rdLength = buffer.short
     val data = ByteArray(rdLength.toInt())
     buffer.get(data)
-    return DNSRecord(
-        name,
+    return DNSRecord(name,
         DNSType.entries.first { it.value == type },
         DNSClass.entries.first { it.value == klass },
         ttl,
@@ -41,6 +41,14 @@ fun parseName(buffer: ByteBuffer): List<String> {
     val labels = mutableListOf<String>()
     var length = buffer.get()
     while (length != 0x00.toByte()) {
+
+        if ((length.toInt() and 0b11000000) > 0) {
+            // Pointer
+            val nextByte = buffer.get()
+            val offset = ((length and 0b00111111.toByte()).toInt() shl 8) + nextByte
+            labels.addAll(parseName(buffer.duplicate().rewind().position(offset)))
+            return labels
+        }
         val bytes = ByteArray(length.toInt())
         buffer.get(bytes)
         labels.add(String(bytes))
