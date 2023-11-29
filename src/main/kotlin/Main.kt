@@ -8,10 +8,13 @@ fun main() {
             val buf = ByteArray(512)
             val packet = DatagramPacket(buf, buf.size)
             serverSocket.receive(packet)
-            println("Received data")
 
-            val bufResponse = ByteArray(512)
-            val packetResponse = DatagramPacket(bufResponse, bufResponse.size, packet.socketAddress)
+            val parsed = packet.data.toDomain()
+            val response = handlePacket(parsed)
+            val responsePacket = response.toPacket()
+
+            val packetResponse =
+                DatagramPacket(responsePacket, responsePacket.size, packet.socketAddress)
             serverSocket.send(packetResponse)
         }
     } catch (e: Exception) {
