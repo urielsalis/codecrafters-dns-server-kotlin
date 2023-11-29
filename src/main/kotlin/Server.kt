@@ -1,6 +1,13 @@
+import DNSHeader.RCode
+
 fun handlePacket(parsed: DNSPacket): DNSPacket {
+    val rcode = if (parsed.header.opcode == 0.toByte()) {
+        RCode.NO_ERROR
+    } else {
+        RCode.NOT_IMPLEMENTED
+    }
     return DNSPacket(
-        header = parsed.header.copy(qr = true, rcode = DNSHeader.RCode.NO_ERROR, ancount = 1),
+        header = parsed.header.copy(qr = true, rcode = rcode, ancount = 1),
         questions = parsed.questions,
         answers = parsed.questions.flatMap { handleQuestion(parsed.header, it) },
         authorities = listOf(),
